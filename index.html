@@ -68,7 +68,7 @@
 
   h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 0; }
   ul { list-style: none; margin: 0; padding: 0; }
-  li.k { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px; padding-block: 10px; border-top: 1px solid var(--line); }
+  li.k { display: grid; grid-template-columns: auto 1fr auto auto auto;align-items: center; gap: 10px; padding-block: 10px; border-top: 1px solid var(--line); }
   li.k:first-child { border-top: 0; }
   .dot { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; }
   .dot.gelir { background: var(--plus-soft); color: var(--plus); }
@@ -84,6 +84,23 @@
   .yedek { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .yedek button { font: inherit; font-size: .85rem; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
   .not { font-size: .78rem; color: var(--muted); text-align: center; margin: 0; line-height: 1.5; }
+
+  .duzen-bant { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--bg); border: 1px dashed var(--accent); border-radius: 10px; padding: 8px 12px; font-size: .88rem; font-weight: 600; color: var(--accent); }
+  .butonlar { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .butonlar.iki { grid-template-columns: auto 1fr; }
+  .vazgec { font: inherit; font-weight: 600; font-size: 1rem; border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; background: var(--surface); color: var(--muted); cursor: pointer; }
+  .kat-bas { display: flex; justify-content: space-between; align-items: center; font-size: .8rem; color: var(--muted); }
+  .link { font: inherit; font-size: .8rem; font-weight: 600; border: 0; background: none; color: var(--accent); cursor: pointer; padding: 4px 0; }
+  .chip.yeni { border-style: dashed; color: var(--accent); }
+  .chip-grup { display: inline-flex; align-items: center; gap: 2px; }
+  .chip-sil { font: inherit; font-size: .8rem; font-weight: 700; border: 0; border-radius: 999px; min-width: 30px; height: 30px; padding: 0 8px; background: var(--minus-soft); color: var(--minus); cursor: pointer; }
+  .chip-sil.onay { background: var(--minus); color: #fff; }
+  .kat-ekle { display: flex; gap: 8px; }
+  .kat-ekle input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  .kat-ekle button { font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 9px 14px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+  .info.tikla { cursor: pointer; }
+  li.k.secili { background: var(--bg); border-radius: 10px; }
+  .kalem { font: inherit; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 8px; border-radius: 6px; }
   @media (max-width: 380px) { .fields { grid-template-columns: 1fr; } .kalan .big { font-size: 1.9rem; } }
 </style>
 </head>
@@ -107,18 +124,32 @@
   </section>
 
   <form class="panel" id="form" novalidate>
+    <div class="duzen-bant" id="duzenBant" hidden>
+      <span id="duzenYazi">Kaydı düzenliyorsunuz</span>
+    </div>
     <div class="seg" role="group" aria-label="Kayıt türü">
       <button type="button" data-tur="gelir" aria-pressed="true">+ Gelir</button>
       <button type="button" data-tur="gider" aria-pressed="false">− Gider</button>
     </div>
+    <div class="kat-bas">
+      <span>Kategori</span>
+      <button type="button" class="link" id="katDuzenBtn">Kategorileri düzenle</button>
+    </div>
     <div class="chips" id="chips" role="group" aria-label="Kategori"></div>
+    <div class="kat-ekle" id="katEkle" hidden>
+      <input id="yeniKat" type="text" maxlength="24" placeholder="Yeni kategori adı" autocomplete="off">
+      <button type="button" id="yeniKatBtn">Ekle</button>
+    </div>
     <div class="fields">
       <label>Tutar (₺)<input id="tutar" class="num" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></label>
       <label>Tarih<input id="tarih" type="date"></label>
       <label class="full">Açıklama (isteğe bağlı)<input id="aciklama" type="text" maxlength="80" placeholder="Örn. Ekim elektrik faturası"></label>
     </div>
     <p class="msg" id="msg" hidden></p>
-    <button class="ekle" type="submit" id="ekleBtn">Gelir ekle</button>
+    <div class="butonlar" id="butonlar">
+      <button class="vazgec" type="button" id="vazgecBtn" hidden>Vazgeç</button>
+      <button class="ekle" type="submit" id="ekleBtn">Gelir ekle</button>
+    </div>
   </form>
 
   <section class="panel">
@@ -136,41 +167,127 @@
 
 <script>
 (() => {
-  const KATEGORI = {
+  const VARSAYILAN = {
     gelir: ["Maaş", "Kira"],
     gider: ["Kredi Kartı", "Elektrik", "Su", "Doğalgaz", "İnternet", "Telefon",
             "Kira", "Aidat", "Market", "Ulaşım", "Kredi Taksiti", "Diğer"]
   };
   const AYLAR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
   const KEY = "ev-butcesi-kayitlar";
+  const KAT_KEY = "ev-butcesi-kategoriler";
   const $ = id => document.getElementById(id);
   const para = n => n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺";
+  const tutarYaz = n => n.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-  let tur = "gelir", kategori = "Maaş", silBekleyen = null, kayitlar = [];
+  let tur = "gelir", kategori = "Maaş", silBekleyen = null, duzenlenen = null, katDuzenModu = false, katSilBekleyen = null;
+  let kayitlar = [], kategoriler = { gelir: [...VARSAYILAN.gelir], gider: [...VARSAYILAN.gider] };
   try { kayitlar = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) {}
+  try {
+    const k = JSON.parse(localStorage.getItem(KAT_KEY));
+    if (k && Array.isArray(k.gelir) && Array.isArray(k.gider)) kategoriler = k;
+  } catch (e) {}
   const kaydet = () => { try { localStorage.setItem(KEY, JSON.stringify(kayitlar)); } catch (e) {} };
+  const katKaydet = () => { try { localStorage.setItem(KAT_KEY, JSON.stringify(kategoriler)); } catch (e) {} };
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
   const bugun = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
   $("tarih").value = bugun();
   $("ay").value = bugun().slice(0, 7);
 
-  function turSec(t) {
+  function turSec(t, kat) {
     tur = t;
     document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tur === t)));
-    kategori = KATEGORI[t][0];
+    kategori = kat || kategoriler[t][0] || "";
+    katSilBekleyen = null;
     chipCiz();
-    $("ekleBtn").textContent = t === "gelir" ? "Gelir ekle" : "Gider ekle";
+    butonYaz();
   }
+  function butonYaz() {
+    $("ekleBtn").textContent = duzenlenen ? "Değişikliği kaydet" : (tur === "gelir" ? "Gelir ekle" : "Gider ekle");
+  }
+
   function chipCiz() {
-    $("chips").innerHTML = "";
-    KATEGORI[tur].forEach(k => {
+    const kutu = $("chips");
+    kutu.innerHTML = "";
+    const liste = [...kategoriler[tur]];
+    // Düzenlenen kaydın kategorisi silinmişse yine de seçilebilsin
+    if (kategori && !liste.includes(kategori)) liste.push(kategori);
+    liste.forEach(k => {
+      const grup = document.createElement("span"); grup.className = "chip-grup";
+      // Kategoriye dokunmak her zaman yalnızca seçer
       const b = document.createElement("button");
       b.type = "button"; b.className = "chip"; b.textContent = k;
       b.setAttribute("aria-pressed", String(k === kategori));
-      b.onclick = () => { kategori = k; chipCiz(); };
-      $("chips").appendChild(b);
+      b.onclick = () => { kategori = k; katSilBekleyen = null; chipCiz(); };
+      grup.appendChild(b);
+      // Silme ayrı düğmede ve iki adımlı: ✕ → Kaldır
+      if (katDuzenModu && kategoriler[tur].includes(k)) {
+        const x = document.createElement("button");
+        x.type = "button";
+        const onay = katSilBekleyen === k;
+        x.className = "chip-sil" + (onay ? " onay" : "");
+        x.textContent = onay ? "Kaldır" : "✕";
+        x.setAttribute("aria-label", onay ? k + " kategorisini kaldırmayı onayla" : k + " kategorisini kaldır");
+        x.onclick = () => {
+          if (katSilBekleyen !== k) { katSilBekleyen = k; chipCiz(); return; }
+          katKaldir(k);
+        };
+        grup.appendChild(x);
+      }
+      kutu.appendChild(grup);
     });
+    $("katEkle").hidden = !katDuzenModu;
+    $("katDuzenBtn").textContent = katDuzenModu ? "Bitti" : "Kategorileri düzenle";
+  }
+
+  function katEkle() {
+    const ad = $("yeniKat").value.trim().replace(/\s+/g, " ");
+    if (!ad) return;
+    if (kategoriler[tur].some(k => k.toLocaleLowerCase("tr") === ad.toLocaleLowerCase("tr"))) {
+      return hata(`"${ad}" zaten listede.`);
+    }
+    hata("");
+    kategoriler[tur].push(ad);
+    katKaydet();
+    $("yeniKat").value = "";
+    chipCiz();
+  }
+  function katKaldir(k) {
+    katSilBekleyen = null;
+    if (kategoriler[tur].length <= 1) { chipCiz(); return hata("En az bir kategori kalmalı."); }
+    hata("");
+    kategoriler[tur] = kategoriler[tur].filter(x => x !== k);
+    katKaydet();
+    if (kategori === k) kategori = kategoriler[tur][0];
+    chipCiz();
+  }
+
+  function duzenle(k) {
+    duzenlenen = k.id;
+    silBekleyen = null;
+    katDuzenModu = false;
+    turSec(k.tur, k.kategori);
+    $("tutar").value = tutarYaz(k.tutar);
+    $("tarih").value = k.tarih;
+    $("aciklama").value = k.aciklama || "";
+    $("duzenYazi").textContent = `Düzenleniyor: ${k.kategori} · ${para(k.tutar)}`;
+    $("duzenBant").hidden = false;
+    $("vazgecBtn").hidden = false;
+    $("butonlar").classList.add("iki");
+    hata("");
+    butonYaz();
+    ciz();
+    $("form").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function duzenBitir() {
+    duzenlenen = null;
+    $("duzenBant").hidden = true;
+    $("vazgecBtn").hidden = true;
+    $("butonlar").classList.remove("iki");
+    $("tutar").value = ""; $("aciklama").value = "";
+    $("tarih").value = bugun();
+    turSec(tur);
+    ciz();
   }
 
   function ciz() {
@@ -193,9 +310,10 @@
       return;
     }
     liste.forEach(k => {
-      const li = document.createElement("li"); li.className = "k";
+      const li = document.createElement("li"); li.className = "k" + (duzenlenen === k.id ? " secili" : "");
       const dot = document.createElement("span"); dot.className = "dot " + k.tur; dot.textContent = k.tur === "gelir" ? "+" : "−";
-      const info = document.createElement("div"); info.className = "info";
+      const info = document.createElement("div"); info.className = "info tikla";
+      info.onclick = () => duzenle(k);
       const ad = document.createElement("div"); ad.className = "ad"; ad.textContent = k.kategori;
       const alt = document.createElement("div"); alt.className = "alt";
       const [, mm, dd] = k.tarih.split("-");
@@ -203,6 +321,9 @@
       info.append(ad, alt);
       const amt = document.createElement("span"); amt.className = "amt num " + k.tur;
       amt.textContent = (k.tur === "gelir" ? "+" : "−") + para(k.tutar);
+      const kalem = document.createElement("button"); kalem.type = "button"; kalem.className = "kalem";
+      kalem.textContent = "✎"; kalem.setAttribute("aria-label", "Kaydı düzenle");
+      kalem.onclick = () => duzenle(k);
       const sil = document.createElement("button"); sil.type = "button";
       const onay = silBekleyen === k.id;
       sil.className = "sil" + (onay ? " onay" : "");
@@ -212,9 +333,10 @@
         if (silBekleyen !== k.id) { silBekleyen = k.id; ciz(); return; }
         silBekleyen = null;
         kayitlar = kayitlar.filter(x => x.id !== k.id);
-        kaydet(); ciz();
+        kaydet();
+        if (duzenlenen === k.id) duzenBitir(); else ciz();
       };
-      li.append(dot, info, amt, sil);
+      li.append(dot, info, amt, kalem, sil);
       ul.appendChild(li);
     });
   }
@@ -224,6 +346,10 @@
 
   document.querySelectorAll(".seg button").forEach(b => b.onclick = () => turSec(b.dataset.tur));
   $("ay").onchange = () => { silBekleyen = null; ciz(); };
+  $("katDuzenBtn").onclick = () => { katDuzenModu = !katDuzenModu; hata(""); chipCiz(); if (katDuzenModu) $("yeniKat").focus(); };
+  $("yeniKatBtn").onclick = katEkle;
+  $("yeniKat").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); katEkle(); } });
+  $("vazgecBtn").onclick = () => { hata(""); duzenBitir(); };
 
   $("form").addEventListener("submit", e => {
     e.preventDefault();
@@ -231,17 +357,26 @@
     const tutar = Math.round(parseFloat(ham) * 100) / 100;
     if (!(tutar > 0)) return hata("Lütfen sıfırdan büyük bir tutar girin.");
     if (!$("tarih").value) return hata("Lütfen bir tarih seçin.");
+    if (!kategori) return hata("Lütfen bir kategori seçin.");
     hata("");
-    kayitlar.push({ id: String(Date.now()), tur, kategori, tutar, tarih: $("tarih").value, aciklama: $("aciklama").value.trim() });
+    katDuzenModu = false; katSilBekleyen = null;
+    const veri = { tur, kategori, tutar, tarih: $("tarih").value, aciklama: $("aciklama").value.trim() };
+    if (duzenlenen) {
+      kayitlar = kayitlar.map(k => k.id === duzenlenen ? { ...k, ...veri } : k);
+    } else {
+      kayitlar.push({ id: String(Date.now()), ...veri });
+    }
     kaydet();
-    $("tutar").value = ""; $("aciklama").value = "";
-    $("ay").value = $("tarih").value.slice(0, 7);
+    $("ay").value = veri.tarih.slice(0, 7);
     $("tutar").blur(); $("aciklama").blur();
+    if (duzenlenen) { duzenBitir(); return; }
+    $("tutar").value = ""; $("aciklama").value = "";
+    chipCiz();
     ciz();
   });
 
   $("yedekAl").onclick = async () => {
-    const metin = JSON.stringify(kayitlar);
+    const metin = JSON.stringify({ kayitlar, kategoriler });
     try { await navigator.clipboard.writeText(metin); yedekMesaj(`${kayitlar.length} kayıt kopyalandı. Notlar uygulamasına yapıştırıp saklayın.`); }
     catch (e) { yedekMesaj("Kopyalanamadı. Lütfen tekrar deneyin."); }
   };
@@ -252,10 +387,15 @@
     if (!metin) return;
     try {
       const veri = JSON.parse(metin);
-      if (!Array.isArray(veri) || !veri.every(k => k && k.id && k.tarih && typeof k.tutar === "number")) throw 0;
-      if (!window.confirm(`${veri.length} kayıt yüklenecek ve şimdiki kayıtların yerini alacak. Devam edilsin mi?`)) return;
-      kayitlar = veri; kaydet(); ciz();
-      yedekMesaj(`${veri.length} kayıt geri yüklendi.`);
+      // Eski yedekler yalnızca kayıt listesiydi
+      const yeniKayitlar = Array.isArray(veri) ? veri : veri.kayitlar;
+      const yeniKat = Array.isArray(veri) ? null : veri.kategoriler;
+      if (!Array.isArray(yeniKayitlar) || !yeniKayitlar.every(k => k && k.id && k.tarih && typeof k.tutar === "number")) throw 0;
+      if (!window.confirm(`${yeniKayitlar.length} kayıt yüklenecek ve şimdiki kayıtların yerini alacak. Devam edilsin mi?`)) return;
+      kayitlar = yeniKayitlar; kaydet();
+      if (yeniKat && Array.isArray(yeniKat.gelir) && Array.isArray(yeniKat.gider)) { kategoriler = yeniKat; katKaydet(); }
+      duzenBitir();
+      yedekMesaj(`${yeniKayitlar.length} kayıt geri yüklendi.`);
     } catch (e) { yedekMesaj("Bu metin geçerli bir yedek değil. Önce \"Yedeği kopyala\" ile alınan metni kopyalayın."); }
   };
 
